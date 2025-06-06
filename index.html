@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combined Interactive Area Chart</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .chart-header {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 10;
+        }
+
+        .chart-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .legend {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .chart-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .area-path {
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
+        }
+
+        .area-path:hover {
+            opacity: 0.8;
+        }
+
+        .line-path {
+            fill: none;
+            stroke-width: 3;
+            opacity: 0.9;
+            transition: opacity 0.3s ease;
+        }
+
+        .line-path:hover {
+            opacity: 1;
+            stroke-width: 4;
+        }
+
+        .tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+            min-width: 200px;
+        }
+
+        .tooltip-year {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-align: center;
+            color: #fff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+        }
+
+        .tooltip-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 5px 0;
+        }
+
+        .tooltip-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .tooltip-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            margin-right: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .tooltip-label {
+            font-weight: 600;
+            margin-right: 12px;
+            min-width: 80px;
+        }
+
+        .tooltip-value {
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .axis {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .axis text {
+            fill: rgba(255, 255, 255, 0.8);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .axis path,
+        .axis line {
+            stroke: rgba(255, 255, 255, 0.4);
+        }
+
+        .grid-line {
+            stroke: rgba(255, 255, 255, 0.15);
+            stroke-dasharray: 2,4;
+        }
+
+        .mouse-line {
+            stroke: rgba(255, 255, 255, 0.8);
+            stroke-width: 2;
+            stroke-dasharray: 8,4;
+            pointer-events: none;
+            filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
+        }
+
+        .axis-label {
+            font-size: 14px;
+            font-weight: 600;
+            fill: rgba(255, 255, 255, 0.9);
+        }
+
+        .data-point {
+            fill: white;
+            stroke-width: 3;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .data-point.visible {
+            opacity: 1;
+        }
+
+        .event-line {
+            pointer-events: none;
+        }
+
+        .event-label {
+            pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chart-header">
+            <div class="chart-title">Multi-Dataset Analytics Dashboard</div>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ff6b6b;"></div>
+                    <span>Revenue Analytics</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #4ecdc4;"></div>
+                    <span>User Growth</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #45b7d1;"></div>
+                    <span>Market Performance</span>
+                </div>
+            </div>
+        </div>
+        <svg class="chart-svg"></svg>
+    </div>
+
+    <div class="tooltip" id="tooltip" style="display: none;"></div>
+
+    <script>
+        // Generate random data for each dataset with more variation
+        function generateData(startYear = 1985, endYear = 2024, baseValue = 100, volatility = 0.25, cycleLength = 7) {
+            const data = [];
+            let currentValue = baseValue;
+            const totalYears = endYear - startYear;
+            
+            for (let year = startYear; year <= endYear; year++) {
+                const yearIndex = year - startYear;
+                const progress = yearIndex / totalYears;
+                
+                // Strong overall upward trend (compounds over time)
+                const baseTrend = 0.045; // 4.5% annual growth on average
+                
+                // Add cyclical patterns (economic cycles, market cycles)
+                const longCycle = Math.sin((yearIndex / cycleLength) * 2 * Math.PI) * 0.15;
+                const shortCycle = Math.sin((yearIndex / 3) * 2 * Math.PI) * 0.08;
+                
+                // Add some major events/shocks at specific periods
+                let eventImpact = 0;
+                if (yearIndex === 15) eventImpact = -0.25; // 2000 dot-com crash
+                if (yearIndex === 23) eventImpact = -0.35; // 2008 financial crisis
+                if (yearIndex === 35) eventImpact = -0.20; // 2020 pandemic
+                
+                // Recovery bounces after major drops
+                if (yearIndex === 16) eventImpact = 0.15; // Recovery
+                if (yearIndex === 25) eventImpact = 0.12; // Recovery
+                if (yearIndex === 37) eventImpact = 0.18; // Recovery
+                
+                // Random volatility (larger swings)
+                const randomChange = (Math.random() - 0.5) * 2 * volatility;
+                
+                // Technology boom periods (late 90s, 2010s)
+                let boomBonus = 0;
+                if (yearIndex >= 12 && yearIndex <= 17) boomBonus = 0.08; // Late 90s tech boom
+                if (yearIndex >= 25 && yearIndex <= 35) boomBonus = 0.05; // 2010s growth
+                
+                // Combine all factors
+                const totalChange = baseTrend + longCycle + shortCycle + eventImpact + randomChange + boomBonus;
+                currentValue *= (1 + totalChange);
+                
+                // Ensure values don't go negative and add some minimum growth
+                currentValue = Math.max(currentValue, baseValue * (1 + progress * 0.5));
+                
+                data.push({
+                    year: new Date(year, 0, 1),
+                    value: currentValue
+                });
+            }
+            
+            return data;
+        }
+
+        // Dataset configurations with varied parameters
+        const datasets = [
+            {
+                id: 'revenue',
+                data: generateData(1985, 2024, 100, 0.30, 8), // Higher volatility, 8-year cycles
+                color: '#ff6b6b',
+                label: 'Revenue'
+            },
+            {
+                id: 'users',
+                data: generateData(1985, 2024, 75, 0.35, 6), // Even higher volatility, 6-year cycles
+                color: '#4ecdc4',
+                label: 'Users'
+            },
+            {
+                id: 'market',
+                data: generateData(1985, 2024, 130, 0.28, 10), // Moderate volatility, 10-year cycles
+                color: '#45b7d1',
+                label: 'Market Cap'
+            }
+        ];
+
+        const margin = { top: 120, right: 80, bottom: 80, left: 100 };
+        let chart;
+
+        function createCombinedChart() {
+            const svg = d3.select('.chart-svg');
+            const width = window.innerWidth - margin.left - margin.right;
+            const height = window.innerHeight - margin.top - margin.bottom;
+
+            svg.selectAll("*").remove();
+
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Get all data points for scaling
+            const allData = datasets.flatMap(d => d.data);
+            
+            // Scales
+            const xScale = d3.scaleTime()
+                .domain(d3.extent(allData, d => d.year))
+                .range([0, width]);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(allData, d => d.value) * 1.1])
+                .range([height, 0]);
+
+            // Grid lines
+            const yTicks = yScale.ticks(8);
+            g.selectAll('.grid-line')
+                .data(yTicks)
+                .enter()
+                .append('line')
+                .attr('class', 'grid-line')
+                .attr('x1', 0)
+                .attr('x2', width)
+                .attr('y1', d => yScale(d))
+                .attr('y2', d => yScale(d));
+
+            // Create gradients for each dataset
+            const defs = svg.append('defs');
+            datasets.forEach(dataset => {
+                const gradient = defs.append('linearGradient')
+                    .attr('id', `gradient-${dataset.id}`)
+                    .attr('gradientUnits', 'userSpaceOnUse')
+                    .attr('x1', 0).attr('y1', 0)
+                    .attr('x2', 0).attr('y2', height);
+
+                gradient.append('stop')
+                    .attr('offset', '0%')
+                    .attr('stop-color', dataset.color)
+                    .attr('stop-opacity', 0.7);
+
+                gradient.append('stop')
+                    .attr('offset', '100%')
+                    .attr('stop-color', dataset.color)
+                    .attr('stop-opacity', 0.1);
+            });
+
+            // Area and line generators
+            const area = d3.area()
+                .x(d => xScale(d.year))
+                .y0(height)
+                .y1(d => yScale(d.value))
+                .curve(d3.curveCardinal);
+
+            const line = d3.line()
+                .x(d => xScale(d.year))
+                .y(d => yScale(d.value))
+                .curve(d3.curveCardinal);
+
+            // Draw areas (behind lines)
+            datasets.forEach(dataset => {
+                g.append('path')
+                    .datum(dataset.data)
+                    .attr('class', `area-path area-${dataset.id}`)
+                    .attr('d', area)
+                    .style('fill', `url(#gradient-${dataset.id})`);
+            });
+
+            // Draw lines (on top of areas)
+            datasets.forEach(dataset => {
+                g.append('path')
+                    .datum(dataset.data)
+                    .attr('class', `line-path line-${dataset.id}`)
+                    .attr('d', line)
+                    .style('stroke', dataset.color);
+            });
+
+            // Add data point circles for hover feedback
+            datasets.forEach(dataset => {
+                g.selectAll(`.point-${dataset.id}`)
+                    .data(dataset.data)
+                    .enter()
+                    .append('circle')
+                    .attr('class', `data-point point-${dataset.id}`)
+                    .attr('cx', d => xScale(d.year))
+                    .attr('cy', d => yScale(d.value))
+                    .attr('r', 4)
+                    .style('fill', 'white')
+                    .style('stroke', dataset.color);
+            });
+
+            // Add event markers for major historical events
+            const events = [
+                { year: 2000, label: 'Dot-com Crash', color: '#ff4757' },
+                { year: 2008, label: 'Financial Crisis', color: '#ff4757' },
+                { year: 2020, label: 'Pandemic', color: '#ff4757' }
+            ];
+
+            events.forEach(event => {
+                const eventDate = new Date(event.year, 0, 1);
+                const x = xScale(eventDate);
+                
+                // Event line
+                g.append('line')
+                    .attr('class', 'event-line')
+                    .attr('x1', x)
+                    .attr('x2', x)
+                    .attr('y1', 0)
+                    .attr('y2', height)
+                    .style('stroke', event.color)
+                    .style('stroke-width', 2)
+                    .style('stroke-dasharray', '10,5')
+                    .style('opacity', 0.6);
+                
+                // Event label
+                g.append('text')
+                    .attr('class', 'event-label')
+                    .attr('x', x)
+                    .attr('y', -10)
+                    .attr('text-anchor', 'middle')
+                    .style('fill', event.color)
+                    .style('font-size', '12px')
+                    .style('font-weight', '600')
+                    .text(event.label);
+            });
+
+            // Axes
+            g.append('g')
+                .attr('class', 'axis')
+                .attr('transform', `translate(0,${height})`)
+                .call(d3.axisBottom(xScale)
+                    .tickFormat(d3.timeFormat("%Y"))
+                    .ticks(d3.timeYear.every(5)));
+
+            g.append('g')
+                .attr('class', 'axis')
+                .call(d3.axisLeft(yScale)
+                    .tickFormat(d => d3.format(".0s")(d))
+                    .ticks(8));
+
+            // Axis labels
+            g.append('text')
+                .attr('class', 'axis-label')
+                .attr('transform', 'rotate(-90)')
+                .attr('y', 0 - margin.left + 40)
+                .attr('x', 0 - (height / 2))
+                .style('text-anchor', 'middle')
+                .text('Value');
+
+            g.append('text')
+                .attr('class', 'axis-label')
+                .attr('transform', `translate(${width / 2}, ${height + 50})`)
+                .style('text-anchor', 'middle')
+                .text('Year');
+
+            // Mouse line
+            const mouseLine = g.append('line')
+                .attr('class', 'mouse-line')
+                .style('display', 'none');
+
+            return {
+                xScale,
+                yScale,
+                width,
+                height,
+                mouseLine,
+                g
+            };
+        }
+
+        function findNearestDataPoint(data, xScale, mouseX) {
+            const bisectDate = d3.bisector(d => d.year).left;
+            const x0 = xScale.invert(mouseX);
+            const i = bisectDate(data, x0, 1);
+            const d0 = data[i - 1];
+            const d1 = data[i];
+            return d1 && (x0 - d0.year > d1.year - x0) ? d1 : d0;
+        }
+
+        function updateTooltip(mouseX, mouseY) {
+            const tooltip = d3.select('#tooltip');
+            
+            if (mouseX < margin.left || mouseX > window.innerWidth - margin.right ||
+                mouseY < margin.top || mouseY > window.innerHeight - margin.bottom) {
+                tooltip.style('display', 'none');
+                chart.mouseLine.style('display', 'none');
+                d3.selectAll('.data-point').classed('visible', false);
+                return;
+            }
+
+            const relativeX = mouseX - margin.left;
+            let tooltipContent = '';
+            let year = null;
+            let prevYearData = [];
+
+            datasets.forEach(dataset => {
+                const dataPoint = findNearestDataPoint(dataset.data, chart.xScale, relativeX);
+                if (dataPoint) {
+                    year = dataPoint.year.getFullYear();
+                    const value = Math.round(dataPoint.value);
+                    
+                    // Calculate year-over-year change
+                    const currentIndex = dataset.data.findIndex(d => d.year.getTime() === dataPoint.year.getTime());
+                    let changeText = '';
+                    if (currentIndex > 0) {
+                        const prevValue = dataset.data[currentIndex - 1].value;
+                        const change = ((value - prevValue) / prevValue) * 100;
+                        const changeColor = change >= 0 ? '#4CAF50' : '#F44336';
+                        const changeSymbol = change >= 0 ? '+' : '';
+                        changeText = `<span style="color: ${changeColor}; font-size: 12px; margin-left: 8px;">(${changeSymbol}${change.toFixed(1)}%)</span>`;
+                    }
+                    
+                    tooltipContent += `
+                        <div class="tooltip-row">
+                            <div class="tooltip-color" style="background-color: ${dataset.color}"></div>
+                            <span class="tooltip-label">${dataset.label}:</span>
+                            <span class="tooltip-value">${d3.format(',')(value)}${changeText}</span>
+                        </div>
+                    `;
+
+                    // Show corresponding data point
+                    const pointX = chart.xScale(dataPoint.year);
+                    const pointY = chart.yScale(dataPoint.value);
+                    d3.selectAll(`.point-${dataset.id}`)
+                        .classed('visible', d => d === dataPoint);
+                }
+            });
+
+            if (tooltipContent && year) {
+                // Update mouse line
+                const lineX = chart.xScale(new Date(year, 0, 1));
+                chart.mouseLine
+                    .attr('x1', lineX)
+                    .attr('x2', lineX)
+                    .attr('y1', 0)
+                    .attr('y2', chart.height)
+                    .style('display', 'block');
+
+                // Position tooltip
+                const tooltipX = Math.min(mouseX + 20, window.innerWidth - 250);
+                const tooltipY = Math.max(mouseY - 20, 10);
+
+                tooltip
+                    .style('display', 'block')
+                    .style('left', tooltipX + 'px')
+                    .style('top', tooltipY + 'px')
+                    .html(`
+                        <div class="tooltip-year">${year}</div>
+                        ${tooltipContent}
+                    `);
+            }
+        }
+
+        function setupMouseEvents() {
+            d3.select('body')
+                .on('mousemove', function(event) {
+                    const [mouseX, mouseY] = d3.pointer(event);
+                    updateTooltip(mouseX, mouseY);
+                })
+                .on('mouseleave', function() {
+                    d3.select('#tooltip').style('display', 'none');
+                    chart.mouseLine.style('display', 'none');
+                    d3.selectAll('.data-point').classed('visible', false);
+                });
+        }
+
+        function handleResize() {
+            chart = createCombinedChart();
+        }
+
+        // Initialize
+        chart = createCombinedChart();
+        setupMouseEvents();
+        window.addEventListener('resize', handleResize);
+    </script>
+</body>
+</html>
